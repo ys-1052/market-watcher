@@ -1,0 +1,41 @@
+# ==========================================================================
+# Market Watcher - Git Ignore Configuration
+# ==========================================================================
+
+# 1. Dependency Directories (PCにインストールされたライブラリ群)
+venv/
+.venv/
+frontend/node_modules/
+
+# 2. Build and Distribution Outputs (ビルド成果物)
+frontend/dist/
+build/
+dist/
+*.egg-info/
+
+# 3. Local Databases and Persistence (ローカルデータベース)
+backend/watchlist.db
+dynamodb_data/
+
+# 4. Python bytecode & Cache (キャッシュファイル)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# 5. OS and Editor Files (OS・エディタ固有ファイル)
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# 6. Environment Variables and Secrets (本番用の環境変数や秘密情報)
+frontend/.env.production
+frontend/.env.local
+.env
+.env.local

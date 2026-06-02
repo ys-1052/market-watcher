@@ -1,0 +1,199 @@
+# ==========================================================================
+# AWS SAM (Serverless Application Model) インフラ定義テンプレート
+# --------------------------------------------------------------------------
+# このファイルは、AWS上のサーバーレスリソース（Cognito認証、FastAPI Lambda、
+# API Gateway、DynamoDB、S3フロントエンド、CloudFront配信）を
+# 「コードによるインフラ定義（IaC）」として一括定義・管理するための設定ファイルです。
+# sam deploy コマンドを実行することで、AWS上に自動構築されます。
+# ==========================================================================
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Market Watcher - yfinance Serverless Stock Watchboard (Low-Cost AWS Serverless Infra)
+
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  # ==========================================================================
+  # 1. DynamoDB Database Layer (On-Demand billing: $0 base cost)
+  # ==========================================================================
+  WatchlistTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: market-watcher-dashboards
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: UserId
+          AttributeType: S
+        - AttributeName: DashboardId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: UserId
+          KeyType: HASH
+        - AttributeName: DashboardId
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ==========================================================================
+  # 2. Amazon Cognito (Invite-only private auth: Free for <50,000 MAUs)
+  # ==========================================================================
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: market-watcher-user-pool
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true # 自己サインアップ無効（管理者招待のみ！）
+        InviteMessageTemplate:
+          EmailMessage: "Market Watcherへ招待されました。一時パスワードは {####} です。以下のログイン画面から初期パスワードを変更してください。"
+          EmailSubject: "Market Watcher 招待のお知らせ"
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: market-watcher-web-client
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false # SPA (React)用のためシークレット不要
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  # ==========================================================================
+  # 3. HTTP API Gateway (API Gateway v2: Very low latency & extremely cheap)
+  # ==========================================================================
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowOrigins:
+          - "*" # 本番環境ではCloudFrontのURLに制限することを推奨
+        MaxAge: 600
+
+  # ==========================================================================
+  # 4. Lambda Backend Function (FastAPI via Mangum: $0 base cost)
+  # ==========================================================================
+  FastApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./backend
+      Handler: main.handler
+      Runtime: python3.12
+      Environment:
+        Variables:
+          AWS_ENV: production
+          TABLE_NAME: !Ref WatchlistTable
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+            ApiId: !Ref HttpApi
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WatchlistTable
+
+  # ==========================================================================
+  # 5. S3 Bucket for Frontend Hosting ($0 base cost for storage < 5GB)
+  # ==========================================================================
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "market-watcher-frontend-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub "OAI for ${FrontendBucket}"
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sidebar: AllowCloudFrontAccess
+            Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt FrontendOAI.S3CanvasUserString
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+
+  # ==========================================================================
+  # 6. CloudFront Distribution (HTTPS Edge Caching: Free for <1TB transfer)
+  # ==========================================================================
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: FrontendS3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${FrontendOAI}"
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        CustomErrorResponses:
+          # React Router等でのSPAルーティング対策として、404をindex.htmlにリダイレクト
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: 200
+            ErrorCachingMinTTL: 0
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway (FastAPI Backend) Endpoint URL"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  CloudFrontUrl:
+    Description: "CloudFront (React Frontend) Distribution URL"
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}"
+  CognitoUserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref UserPool
+  CognitoClientId:
+    Description: "Cognito App Client ID"
+    Value: !Ref UserPoolClient
