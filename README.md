@@ -1,123 +1,123 @@
-# 📈 Market Watcher - リアルタイム株価ボード
+# 📈 Market Watcher - Real-time Stock Board
 
-リアルタイム株価を表示し、ユーザーごとに複数のテーマ別・市場別ウォッチリスト（ダッシュボード）を自由に変更・ドラッグ＆ドロップで並び替えができるWebアプリケーションです。
+A Web application that displays real-time stock prices, allowing users to freely customize and rearrange multiple theme-based/market-based watchlists (dashboards) via drag-and-drop.
 
-AWSのサーバーレスアーキテクチャ（S3 + CloudFront + Lambda + DynamoDB + Cognito）を活用した、高効率かつ低コストで運用可能な設計となっています。
-
----
-
-## ✨ 主な機能
-
-1. **マルチ・ダッシュボード（ウォッチリスト切り替え）**
-   - 「テック株」「日本株主力」「高配当」など、任意のテーマごとにタブでダッシュボードを作成・切り替え・削除できます。
-2. **自由な並び替え（ドラッグ＆ドロップ）**
-   - 各銘柄カードをマウスドラッグ＆ドロップで直感的に並び替えられます。並び替えた順序は即座にデータベースに自動保存されます。
-3. **日米株式のハイブリッドサポート**
-   - 米国株（`AAPL`, `TSLA` など）のほか、日本株（`7203.T` など）の表示に対応。
-   - **入力オートコンプリートアシスト**: 検索バーに `7203` のような数字4桁を入力した場合、東証コードである `.T` を自動で補完して候補表示します。
-4. **軽量・高品質なインタラクティブ折れ線チャート**
-   - 外部の大規模チャートライブラリを使用せず、HTML5 Canvasをフル活用した滑らかで美しい折れ線グラフ（スパークライン）を描画。
-   - 詳細モーダルでは、マウスカーソルを合わせると価格を追従表示する「クロスヘアガイド（照準器）」機能付きのインタラクティブチャートを実装。
-5. **ポータブルなローカルDB接続設計**
-   - ローカル起動時、Docker（DynamoDB Local）が立ち上がっていれば自動で接続します。
-   - Dockerが立ち上がっていない場合、**自動的にローカルの SQLite ファイル (`backend/watchlist.db`) にフォールバック**してデータベースをシームレスに立ち上げます。これにより、複雑な環境構築なしで即座に開発・テストが可能です。
+It is designed to run efficiently and at low cost by leveraging AWS serverless architecture (S3 + CloudFront + Lambda + DynamoDB + Cognito).
 
 ---
 
-## 🛠️ 技術スタック
+## ✨ Key Features
 
-- **フロントエンド**: Vite + React + Vanilla CSS (HTML5 Semantic)
-- **バックエンド**: Python 3.12+ + FastAPI + `mangum` (Lambda用)
-- **データベース**: Amazon DynamoDB (AWS) / SQLite (ローカル自動フォールバック)
-- **インフラデプロイ**: AWS SAM (Serverless Application Model)
+1. **Multi-Dashboard (Watchlist Switching)**
+   - You can create, switch, and delete dashboards via tabs for any theme, such as "Tech Stocks", "Major Japanese Stocks", "High Dividend", etc.
+2. **Flexible Ordering (Drag & Drop)**
+   - You can intuitively reorder each stock card by dragging and dropping with your mouse. The rearranged order is immediately and automatically saved to the database.
+3. **Hybrid Support for US and Japanese Stocks**
+   - Supports displaying US stocks (such as `AAPL`, `TSLA`) as well as Japanese stocks (such as `7203.T`).
+   - **Autocomplete Input Assist**: If you enter a 4-digit number like `7203` in the search bar, it automatically appends `.T` (the TSE code) and displays it as a suggestion.
+4. **Lightweight, High-Quality Interactive Line Charts**
+   - Renders smooth and beautiful sparklines by utilizing HTML5 Canvas directly, without relying on large external charting libraries.
+   - The detailed modal implements an interactive chart with a "crosshair guide" that follows the mouse cursor to display the price.
+5. **Portable Local DB Connection Design**
+   - When launching locally, if Docker (DynamoDB Local) is running, it automatically connects to it.
+   - If Docker is not running, it **automatically falls back to a local SQLite file (`backend/watchlist.db`)** to seamlessly boot up the database. This allows for immediate development and testing without complex environment setup.
 
 ---
 
-## 🚀 ローカル起動手順
+## 🛠️ Technology Stack
 
-ローカル環境では、フロントエンド（ポート `5173`）とバックエンド（ポート `8080`）をそれぞれ起動します。フロントエンドは自動でバックエンドへAPIプロキシを行います。
+- **Frontend**: Vite + React + Vanilla CSS (HTML5 Semantic)
+- **Backend**: Python 3.12+ + FastAPI + `mangum` (for Lambda)
+- **Database**: Amazon DynamoDB (AWS) / SQLite (Local Automatic Fallback)
+- **Infrastructure Deployment**: AWS SAM (Serverless Application Model)
 
-### 💡 最も簡単な同時起動方法 (Makefile)
-プロジェクトのルートディレクトリで以下のコマンドを実行するだけで、フロントエンドとバックエンドの両サーバーが同時に起動します。
+---
+
+## 🚀 Local Startup Instructions
+
+In a local environment, you start the frontend (port `5173`) and the backend (port `8080`) separately. The frontend automatically proxies API requests to the backend.
+
+### 💡 The Easiest Simultaneous Startup Method (Makefile)
+Simply run the following command in the project root directory to start both frontend and backend servers at the same time:
 ```bash
 make dev
 ```
-起動完了後、[http://localhost:5173](http://localhost:5173) にブラウザでアクセスしてください。
+Once startup is complete, open your browser and navigate to [http://localhost:5173](http://localhost:5173).
 
 ---
 
-### 1. バックエンド (FastAPI) の個別起動
+### 1. Start the Backend (FastAPI) Separately
 
 ```bash
-# プロジェクトルートに移動
+# Navigate to the project root
 cd /Users/ytakahashi/app/market-watcher
 
-# 仮想環境の作成
+# Create a virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# 依存パッケージのインストール
+# Install dependency packages
 pip install -r backend/requirements.txt
 
-# バックエンドサーバーの起動 (自動リロード有効、ポート 8080)
+# Start backend server (auto-reload enabled, port 8080)
 AWS_ENV=local uvicorn backend.main:app --port 8080 --reload
 ```
-- バックエンドが起動すると、自動的にローカルDB（DynamoDB Local、またはSQLiteファイル）が初期化されます。
-- `http://127.0.0.1:8080/docs` にアクセスすると、FastAPI自動生成の Swagger UI API仕様書を確認・テストできます。
+- Once the backend starts, the local database (DynamoDB Local or SQLite file) is automatically initialized.
+- Access `http://127.0.0.1:8080/docs` to view and test the Swagger UI API documentation automatically generated by FastAPI.
 
-> **💡 DynamoDB Local (Docker) を利用したい場合**
-> Dockerがインストールされている場合は、別のターミナルで `docker compose up -d` を実行するだけでポート `8000` に DynamoDB Local が起動し、バックエンドがSQLiteから自動的にDynamoDB Localへと切り替わります（ポートが分かれているため、FastAPI側と競合・デッドロックしません）。
+> **💡 If you want to use DynamoDB Local (Docker)**
+> If Docker is installed, running `docker compose up -d` in another terminal will launch DynamoDB Local on port `8000`. The backend will automatically switch from SQLite to DynamoDB Local (because ports are separate, there is no conflict or deadlock with the FastAPI side).
 
 ---
 
-### 2. フロントエンド (Vite + React) の起動
+### 2. Start the Frontend (Vite + React)
 
 ```bash
-# 別のターミナルを開き、フロントエンドフォルダへ移動
+# Open another terminal and navigate to the frontend folder
 cd /Users/ytakahashi/app/market-watcher/frontend
 
-# 依存パッケージのインストール
+# Install dependency packages
 npm install
 
-# 開発用サーバーの起動
+# Start the development server
 npm run dev
 ```
 
-起動後、ブラウザで [http://localhost:5173](http://localhost:5173) にアクセスしてください。
-- ログイン画面が表示されます。任意のユーザー名（例: `guest`, `admin` など）を入力してログインしてください。
-- ユーザー名ごとに個別のダッシュボードがDBに自動作成され、マルチユーザーでの利用に対応しています。
+After starting, access [http://localhost:5173](http://localhost:5173) in your browser.
+- The login screen will be displayed. Log in by entering any username (e.g., `guest`, `admin`).
+- A dedicated dashboard is automatically created for each username in the database, supporting multi-user environments.
 
 ---
 
-## ☁️ AWSへのデプロイ手順
+## ☁️ Deployment Instructions to AWS
 
-AWS上に本番インフラを構築する手順です。
+Instructions for building the production infrastructure on AWS.
 
-### 1. バックエンド ＆ 基礎インフラのデプロイ (AWS SAM)
+### 1. Deploy Backend & Basic Infrastructure (AWS SAM)
 
-事前に [AWS CLI](https://aws.amazon.com/cli/) および [AWS SAM CLI](https://aws.amazon.com/serverless/sam/) をセットアップし、適切な認証情報を設定しておきます。
+Set up the [AWS CLI](https://aws.amazon.com/cli/) and [AWS SAM CLI](https://aws.amazon.com/serverless/sam/) beforehand, and configure appropriate credentials.
 
 ```bash
-# プロジェクトルートに移動
+# Navigate to the project root
 cd /Users/ytakahashi/app/market-watcher
 
-# SAM ビルドの実行 (Lambdaパッケージング)
+# Run SAM build (Lambda packaging)
 sam build
 
-# SAM デプロイの実行 (初回は --guided を推奨)
+# Run SAM deploy (first time, --guided is recommended)
 sam deploy --guided
 ```
-デプロイ完了後、ターミナルの出力（Outputs）に以下の情報が表示されます。
-- `CloudFrontUrl` (フロントエンドの公開URL)
-- `ApiUrl` (API GatewayのエンドポイントURL)
-- `CognitoUserPoolId` (ユーザープールID)
-- `CognitoClientId` (クライアントID)
+Upon completion of the deployment, the following information will be displayed in the terminal output (Outputs):
+- `CloudFrontUrl` (Public URL of the frontend)
+- `ApiUrl` (Endpoint URL of API Gateway)
+- `CognitoUserPoolId` (User Pool ID)
+- `CognitoClientId` (Client ID)
 
 ---
 
-### 2. 招待ユーザー（ログインアカウント）の作成
+### 2. Create Invited Users (Login Accounts)
 
-管理者がAWS管理画面、または以下のAWS CLIコマンドからメールアドレスを指定してユーザーを招待します。
+The administrator invites users by specifying their email addresses from the AWS management console or using the following AWS CLI command:
 
 ```bash
 aws cognito-idp admin-create-user \
@@ -125,35 +125,35 @@ aws cognito-idp admin-create-user \
   --username <email_address> \
   --user-attributes Name=email,Value=<email_address>
 ```
-- コマンドを実行すると、招待されたユーザー宛てに初期（一時）パスワードが記載された招待メールが届きます。
-- 初回ログイン時に、本パスワードの作成を求められます。
+- Running this command sends an invitation email containing an initial (temporary) password to the invited user.
+- The user will be prompted to create their permanent password during their first login.
 
 ---
 
-### 3. フロントエンドのビルド ＆ デプロイ
+### 3. Build & Deploy Frontend
 
-#### A. エンドポイントの書き換え
-フロントエンドビルドの前に、環境変数ファイルを準備します：
-`frontend/.env.production` を新規作成し、以下を設定します。
+#### A. Update the Endpoint
+Before building the frontend, prepare the environment variable file:
+Create a new file `frontend/.env.production` and configure the following:
 ```env
 VITE_API_BASE_URL=https://<HttpApiId>.execute-api.<region>.amazonaws.com
 ```
 
-> ※ 本番コード側では、`fetch('/api/...')` を `fetch(import.meta.env.VITE_API_BASE_URL + '/api/...')` のように繋げることで環境別のAPIサーバー切り替えに対応できます。
+> ※ In the production code, you can switch the API server for each environment by joining fetch URLs like `fetch(import.meta.env.VITE_API_BASE_URL + '/api/...')` instead of just `fetch('/api/...')`.
 
-#### B. ビルド ＆ S3アップロード
+#### B. Build & Upload to S3
 ```bash
-# frontend フォルダへ移動
+# Navigate to the frontend folder
 cd frontend
 
-# 静的ファイルのビルド
+# Build static files
 npm run build
 
-# ビルド成果物 (dist フォルダ) を S3 にアップロード
+# Upload built assets (dist folder) to S3
 aws s3 sync dist/ s3://<s3_bucket_name> --delete
 
-# CloudFront のキャッシュをクリア（即時反映させるため）
+# Clear CloudFront cache (to reflect changes immediately)
 aws cloudfront create-invalidation --distribution-id <cloudfront_distribution_id> --paths "/*"
 ```
 
-デプロイ完了後、`CloudFrontUrl` のアドレスにブラウザからアクセスし、Cognitoで招待したメールアドレスと一時パスワードを使って安全にログインができるようになります。
+Once the deployment is complete, access the `CloudFrontUrl` address from your browser. You can now securely log in using the email address and temporary password invited via Cognito.
