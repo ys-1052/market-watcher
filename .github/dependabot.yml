@@ -5,6 +5,9 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   # Maintain dependencies for pip (Backend)
   - package-ecosystem: "pip"

@@ -16,7 +16,7 @@ jobs:
   aws-sam-validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup AWS SAM CLI
         uses: aws-actions/setup-sam@v2
@@ -24,4 +24,4 @@ jobs:
           use-installer: true
 
       - name: Validate SAM Template
-        run: sam validate --no-resolve-parameters
+        run: sam validate
