@@ -41,8 +41,7 @@ def init_sqlite():
     """SQLiteのデータベースとテーブルを初期化する"""
     conn = sqlite3.connect(SQLITE_DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS dashboards (
             UserId TEXT,
             DashboardId TEXT,
@@ -50,8 +49,7 @@ def init_sqlite():
             Tickers TEXT,
             PRIMARY KEY (UserId, DashboardId)
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
     print(f"Fallback SQLite database initialized at {SQLITE_DB_PATH}")

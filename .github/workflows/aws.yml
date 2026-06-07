@@ -25,3 +25,5 @@ jobs:
 
       - name: Validate SAM Template
         run: sam validate
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-1
