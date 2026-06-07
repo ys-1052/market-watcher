@@ -8,6 +8,17 @@ updates:
     ignore:
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+    groups:
+      vite-dependencies:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+      react-dependencies:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
 
   # Maintain dependencies for pip (Backend)
   - package-ecosystem: "pip"
